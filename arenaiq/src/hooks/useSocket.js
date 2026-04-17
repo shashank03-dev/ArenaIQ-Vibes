@@ -5,7 +5,6 @@ import { io } from 'socket.io-client';
 //                          production: served from same Express server
 const URL = undefined;
 
-
 export function useSocket() {
   const [socket, setSocket] = useState(null);
   const [gameState, setGameState] = useState(null);
