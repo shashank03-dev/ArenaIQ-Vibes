@@ -291,7 +291,12 @@ function Card({ children, style = {} }) {
 /* ── OpsView ─────────────────────────────────────────────── */
 export default function OpsView({ gameState, simulateRush }) {
   return (
-    <div className="ops-grid" style={{ display: 'grid', gap: 16 }}>
+    <div
+      className="ops-grid"
+      role="region"
+      aria-label="Operations dashboard"
+      style={{ display: 'grid', gap: 16 }}
+    >
       {/* ── Left 2-col: Map + Gate Cards ─── */}
       <div className="ops-left-col" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Map card */}
@@ -387,6 +392,10 @@ export default function OpsView({ gameState, simulateRush }) {
         <Card style={{ flex: '0 0 auto' }}>
           <SectionHeader icon="🚨" label="Active Alerts" accent="#f87171" />
           <div
+            role="log"
+            aria-label="Active alerts"
+            aria-live="polite"
+            aria-relevant="additions"
             style={{
               padding: 10,
               maxHeight: 280,
@@ -421,6 +430,9 @@ export default function OpsView({ gameState, simulateRush }) {
         <Card style={{ flex: '0 0 auto' }}>
           <SectionHeader icon="🧠" label="Gemini AI Insights" accent={T.indigo} />
           <div
+            role="status"
+            aria-live="polite"
+            aria-label="AI insights from Gemini"
             style={{
               padding: '16px',
               ...font,

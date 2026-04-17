@@ -231,6 +231,8 @@ export default function FanView({ gameState, fanAlert }) {
 
   return (
     <div
+      role="region"
+      aria-label="Fan dashboard"
       style={{
         maxWidth: 1140,
         margin: '0 auto',
@@ -242,6 +244,8 @@ export default function FanView({ gameState, fanAlert }) {
       {/* ── Fan Alert banner ─────────────────────────────── */}
       {fanAlert && (
         <div
+          role="alert"
+          aria-live="assertive"
           className="fan-alert-in"
           style={{
             display: 'flex',

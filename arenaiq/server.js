@@ -17,46 +17,145 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Security and Efficiency Middlewares
-app.use(helmet());
-app.use(compression());
+// ── Parse JSON bodies ──────────────────────────────────────────
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
+
+// ── Security Headers via Helmet ────────────────────────────────
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'wss:', 'ws:'],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xContentTypeOptions: true,
+    xFrameOptions: { action: 'deny' },
+    xXssProtection: false, // rely on CSP instead
+  })
+);
+
+// ── Compression ───────────────────────────────────────────────
+app.use(compression({ level: 6, threshold: 1024 }));
+
+// ── XSS clean ────────────────────────────────────────────────
 app.use(xss());
+
+// ── CORS ──────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'https://vision.hack2skill.com'], // Restrict to specific domains
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   })
 );
 
-// Initialize Google Cloud Logging
-const logging = new Logging();
-const log = logging.log('arenaiq-server-log');
-
-// Rate limiting
+// ── Rate Limiting ─────────────────────────────────────────────
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
 });
 app.use(limiter);
 
+// ── Stricter rate limit for API endpoints ─────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ── Initialize Google Cloud Logging ──────────────────────────
+const logging = new Logging();
+const log = logging.log('arenaiq-server-log');
+
+/**
+ * Writes a structured log entry to Google Cloud Logging.
+ * @param {string} message - Log message
+ * @param {'INFO'|'WARNING'|'ERROR'} severity - Log severity
+ * @param {object} [labels] - Optional additional labels
+ */
+async function writeLog(message, severity = 'INFO', labels = {}) {
+  try {
+    const metadata = {
+      resource: { type: 'global' },
+      severity,
+      labels: { service: 'arenaiq', ...labels },
+    };
+    const entry = log.entry(metadata, { message });
+    await log.write(entry);
+  } catch (err) {
+    // Don't let logging failures crash the server
+    console.error('[Cloud Logging error]', err.message);
+  }
+}
+
+// ── HTTP Server + Socket.IO ───────────────────────────────────
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST'],
   },
+  // Limit socket payload to prevent abuse
+  maxHttpBufferSize: 1e4,
 });
 
-// Initialize Gemini AI
-// Fallback to empty string if missing
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// ── Initialize Gemini AI ──────────────────────────────────────
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+if (!GEMINI_API_KEY) {
+  console.warn('[ArenaIQ] GEMINI_API_KEY is not set — AI insights will be disabled.');
+}
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-// Serve static files from dist (Vite build output)
-app.use(express.static(path.join(__dirname, 'dist')));
+// ── Serve Static Files from dist (Vite build) ─────────────────
+app.use(
+  express.static(path.join(__dirname, 'dist'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+  })
+);
 
-// Simulated Data State
-let gameState = {
+// ── Health Check Endpoint ─────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '0.0.0',
+  });
+});
+
+// ── API: Current Game State ───────────────────────────────────
+app.get('/api/state', apiLimiter, (req, res) => {
+  res.json(gameState);
+});
+
+// ── Simulated Data State ──────────────────────────────────────
+/** @type {import('./types.js').GameState} */
+const gameState = {
   score: { home: 102, away: 98 },
   time: '4th Qtr 02:45',
   gates: {
@@ -77,14 +176,31 @@ let gameState = {
     { id: 102, status: 'Preparing' },
     { id: 103, status: 'Ready' },
   ],
-  aiInsight: 'Gathering stadium data...',
+  aiInsight: 'Gathering stadium data…',
 };
 
 /**
- * Generates an AI insight using Gemini based on the current game state.
+ * Derives gate status from wait time.
+ * @param {number} waitTime - Wait time in minutes
+ * @returns {'green'|'amber'|'red'}
+ */
+function deriveGateStatus(waitTime) {
+  if (waitTime < 10) return 'green';
+  if (waitTime < 20) return 'amber';
+  return 'red';
+}
+
+/**
+ * Generates an AI insight using Google Gemini based on the current game state.
+ * Logs success and error to Google Cloud Logging.
  * @returns {Promise<void>}
  */
 async function generateInsights() {
+  if (!GEMINI_API_KEY) {
+    gameState.aiInsight = 'AI insights require a valid GEMINI_API_KEY.';
+    return;
+  }
+
   try {
     const prompt = `You are an AI venue operations assistant. The current stadium state is:
 Score: Home ${gameState.score.home} - Away ${gameState.score.away}
@@ -98,18 +214,18 @@ Give a concise 1-sentence recommendation to the ops team to optimize crowd flow 
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
-    const text = `AI insight generated: ${response.text.substring(0, 50)}...`;
-    const metadata = { resource: { type: 'global' } };
-    const entry = log.entry(metadata, text);
-    log.write(entry).catch(console.error);
-    
+
     gameState.aiInsight = response.text;
+
+    await writeLog(
+      `AI insight generated: ${response.text.substring(0, 80)}…`,
+      'INFO',
+      { event: 'ai_insight' }
+    );
   } catch (err) {
-    console.error('Error generating insights:', err);
+    console.error('[ArenaIQ] Error generating insights:', err.message);
     gameState.aiInsight = 'AI temporarily unavailable.';
-    
-    const errorEntry = log.entry({ resource: { type: 'global' }, severity: 'ERROR' }, err.message);
-    log.write(errorEntry).catch(console.error);
+    await writeLog(err.message, 'ERROR', { event: 'ai_insight_error' });
   }
 }
 
@@ -117,7 +233,7 @@ Give a concise 1-sentence recommendation to the ops team to optimize crowd flow 
 generateInsights();
 setInterval(generateInsights, 30000);
 
-// Data simulation loop
+// ── Data Simulation Loop ──────────────────────────────────────
 setInterval(() => {
   if (Math.random() > 0.6) {
     gameState.score.home += Math.floor(Math.random() * 3);
@@ -127,41 +243,42 @@ setInterval(() => {
   }
 
   Object.keys(gameState.gates).forEach((gate) => {
-    let diff = Math.floor(Math.random() * 5) - 2; // -2 to +2
+    const diff = Math.floor(Math.random() * 5) - 2; // -2 to +2
     gameState.gates[gate].waitTime = Math.max(0, gameState.gates[gate].waitTime + diff);
-
-    const w = gameState.gates[gate].waitTime;
-    if (w < 10) gameState.gates[gate].status = 'green';
-    else if (w < 20) gameState.gates[gate].status = 'amber';
-    else gameState.gates[gate].status = 'red';
+    gameState.gates[gate].status = deriveGateStatus(gameState.gates[gate].waitTime);
   });
 
   io.emit('state_update', gameState);
 }, 5000);
 
+// ── Socket.IO Connection Handling ────────────────────────────
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('[ArenaIQ] Client connected:', socket.id);
+  writeLog(`Client connected: ${socket.id}`, 'INFO', { event: 'socket_connect' });
 
+  // Send current state immediately on connect
   socket.emit('state_update', gameState);
 
-  socket.on('simulate_rush', () => {
-    console.log('Rush hour simulated!');
+  socket.on('simulate_rush', async () => {
+    console.log('[ArenaIQ] Rush hour simulated by:', socket.id);
+    writeLog(`Rush hour simulated by: ${socket.id}`, 'WARNING', { event: 'simulate_rush' });
 
     gameState.zones.North.density = 91;
     gameState.zones.North.status = 'critical';
 
     gameState.gates.A.waitTime = 35;
-    gameState.gates.A.status = 'red';
+    gameState.gates.A.status = deriveGateStatus(35);
     gameState.gates.C.waitTime = 3;
-    gameState.gates.C.status = 'green';
+    gameState.gates.C.status = deriveGateStatus(3);
 
     gameState.alerts.push({
       id: Date.now(),
-      message: 'North Stand 91% — reroute to East Gate',
+      message: 'North Stand 91% — reroute fans to East Gate',
       level: 'critical',
       time: new Date().toLocaleTimeString(),
     });
 
+    // Keep at most 5 alerts
     if (gameState.alerts.length > 5) gameState.alerts.shift();
 
     io.emit('state_update', gameState);
@@ -170,21 +287,39 @@ io.on('connection', (socket) => {
     });
 
     // Trigger immediate AI insight on rush hour
-    generateInsights().then(() => {
-      io.emit('state_update', gameState);
-    });
+    await generateInsights();
+    io.emit('state_update', gameState);
   });
 
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('[ArenaIQ] Client disconnected:', socket.id, reason);
+    writeLog(`Client disconnected: ${socket.id} (${reason})`, 'INFO', { event: 'socket_disconnect' });
+  });
+
+  socket.on('error', (err) => {
+    console.error('[ArenaIQ] Socket error:', err.message);
+    writeLog(`Socket error: ${err.message}`, 'ERROR', { event: 'socket_error' });
   });
 });
 
+// ── SPA fallback ──────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-const PORT = process.env.PORT || 8080;
+// ── Global Error Handler ──────────────────────────────────────
+app.use((err, req, res, _next) => {
+  const status = err.status || 500;
+  console.error('[ArenaIQ] Unhandled error:', err.message);
+  writeLog(err.message, 'ERROR', { event: 'unhandled_error', path: req.path });
+  res.status(status).json({
+    error: status < 500 ? err.message : 'Internal server error',
+  });
+});
+
+// ── Start Server ──────────────────────────────────────────────
+const PORT = parseInt(process.env.PORT || '8080', 10);
 httpServer.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`[ArenaIQ] Server listening on port ${PORT}`);
+  writeLog(`Server started on port ${PORT}`, 'INFO', { event: 'server_start' });
 });

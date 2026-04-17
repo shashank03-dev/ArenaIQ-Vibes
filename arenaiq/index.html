@@ -5,12 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ArenaIQ - Smart Venue Experience</title>
     <meta name="description" content="ArenaIQ — Real-time smart venue operations and fan experience platform. Monitor crowd density, gate wait times, and food orders live." />
+    <meta name="theme-color" content="#08090a" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="index, follow" />
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ArenaIQ - Smart Venue Experience" />
+    <meta property="og:description" content="Real-time crowd management and fan experience platform powered by Google Gemini AI." />
+    <meta property="og:locale" content="en_US" />
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ArenaIQ - Smart Venue Experience" />
+    <meta name="twitter:description" content="Real-time crowd management and fan experience platform powered by Google Gemini AI." />
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
   </head>
   <body style="background:#08090a; color:#f7f8f8; min-height:100vh;">
-    <div id="root"></div>
+    <!-- Skip to main content for keyboard / screen-reader users -->
+    <a
+      href="#main-content"
+      style="
+        position: absolute;
+        top: -999px;
+        left: -999px;
+        z-index: 9999;
+        background: #5e6ad2;
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-family: Inter, sans-serif;
+        font-size: 0.875rem;
+        text-decoration: none;
+      "
+      onfocus="this.style.top='8px';this.style.left='8px';"
+      onblur="this.style.top='-999px';this.style.left='-999px';"
+    >Skip to main content</a>
+    <div id="root" role="application" aria-label="ArenaIQ Smart Venue Platform"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
