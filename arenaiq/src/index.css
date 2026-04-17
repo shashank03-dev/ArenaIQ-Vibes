@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts: Inter Variable ────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+/* ── Linear.app Design System Tokens ─────────────────────── */
+:root {
+  /* Backgrounds (luminance stacking — darker = deeper) */
+  --bg:          #08090a;
+  --panel:       #0f1011;
+  --surface:     #191a1b;
+  --surface2:    #28282c;
+
+  /* Borders */
+  --border:      rgba(255,255,255,0.08);
+  --border-sub:  rgba(255,255,255,0.05);
+  --border-solid: #23252a;
+
+  /* Text */
+  --text-1:   #f7f8f8;
+  --text-2:   #d0d6e0;
+  --text-3:   #8a8f98;
+  --text-4:   #62666d;
+
+  /* Brand Accent — only chromatic color */
+  --indigo:        #5e6ad2;
+  --violet:        #7170ff;
+  --violet-hover:  #828fff;
+
+  /* Status (semantic) */
+  --green:   #27a644;
+  --emerald: #10b981;
+  --amber:   #d97706;
+  --red:     #e5484d;
+
+  /* Shadow / Elevation */
+  --shadow-sm:  rgba(0,0,0,0.2) 0px 0px 0px 1px;
+  --shadow-md:  rgba(0,0,0,0.4) 0px 2px 4px;
+  --shadow-inset: rgba(0,0,0,0.2) 0px 0px 12px 0px inset;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', 'SF Pro Display', -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv01', 'ss03';
+  background: var(--bg);
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+/* ── Custom Animations ────────────────────────────────────── */
+@keyframes zone-pulse {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(229, 72, 77, 0.5));
+  }
+  50% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 18px rgba(229, 72, 77, 0.9));
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bar-grow {
+  from { width: 0%; }
+}
+
+@keyframes ring-spin {
+  from { stroke-dashoffset: 251; }
+}
+
+@keyframes glow-violet {
+  0%, 100% { box-shadow: 0 0 6px rgba(113,112,255,0.3); }
+  50% { box-shadow: 0 0 20px rgba(113,112,255,0.6); }
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Utility Classes ──────────────────────────────────────── */
+.zone-critical {
+  animation: zone-pulse 1.2s ease-in-out infinite;
+}
+
+.alert-slide-in {
+  animation: slide-in-left 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fan-alert-in {
+  animation: slide-in-top 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bar-animate {
+  animation: bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.glow-violet {
+  animation: glow-violet 2s ease-in-out infinite;
+}
+
+.float-up {
+  animation: float-up 0.5s ease both;
+}
+
+/* Status indicator dot */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.connected {
+  background: var(--emerald);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Animate-pulse-fast kept for compat */
+@layer utilities {
+  .animate-pulse-fast {
+    animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* ── Responsive Layout Classes ────────────────────────────── */
+.fan-grid {
+  grid-template-columns: 1fr 440px;
+}
+
+.fan-stats-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.ops-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.ops-left-col {
+  grid-column: span 2;
+}
+
+.ops-gate-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .fan-grid {
+    grid-template-columns: 1fr 320px;
+  }
+  .fan-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .ops-grid {
+    grid-template-columns: 1fr;
+  }
+  .ops-left-col {
+    grid-column: span 1;
+  }
+  .ops-gate-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .fan-grid {
+    grid-template-columns: 1fr;
+  }
+  .app-nav {
+    flex-wrap: wrap;
+    gap: 16px;
+    height: auto !important;
+    padding: 24px 24px 0 !important;
+  }
+  .app-nav > div:nth-child(2) {
+    order: 3;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
