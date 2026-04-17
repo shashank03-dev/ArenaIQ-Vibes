@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 /* ─── helpers ─────────────────────────────────────────────── */
 const COLORS = {
   critical: { fill: 'rgba(229,72,77,0.14)', stroke: '#e5484d' },
@@ -169,3 +171,20 @@ export default function VenueMap({ zones, isOpsView = false }) {
     </div>
   );
 }
+
+VenueMap.propTypes = {
+  zones: PropTypes.object.isRequired,
+  isOpsView: PropTypes.bool,
+};
+
+ZonePath.propTypes = {
+  d: PropTypes.string.isRequired,
+  density: PropTypes.number.isRequired,
+  label: PropTypes.string.isRequired,
+  labelX: PropTypes.number.isRequired,
+  labelY: PropTypes.number.isRequired,
+  pctX: PropTypes.number.isRequired,
+  pctY: PropTypes.number.isRequired,
+  rotate: PropTypes.number,
+  isOpsView: PropTypes.bool,
+};

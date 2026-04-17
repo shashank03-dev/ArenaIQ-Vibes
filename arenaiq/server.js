@@ -9,6 +9,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import { Logging } from '@google-cloud/logging';
+import xss from 'xss-clean';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,12 +20,18 @@ const app = express();
 // Security and Efficiency Middlewares
 app.use(helmet());
 app.use(compression());
+app.use(xss());
 app.use(
   cors({
-    origin: '*', // For development. In production, restrict to specific domains.
+    origin: ['http://localhost:5173', 'https://vision.hack2skill.com'], // Restrict to specific domains
     methods: ['GET', 'POST'],
+    credentials: true,
   })
 );
+
+// Initialize Google Cloud Logging
+const logging = new Logging();
+const log = logging.log('arenaiq-server-log');
 
 // Rate limiting
 const limiter = rateLimit({
@@ -90,10 +98,18 @@ Give a concise 1-sentence recommendation to the ops team to optimize crowd flow 
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
+    const text = `AI insight generated: ${response.text.substring(0, 50)}...`;
+    const metadata = { resource: { type: 'global' } };
+    const entry = log.entry(metadata, text);
+    log.write(entry).catch(console.error);
+    
     gameState.aiInsight = response.text;
   } catch (err) {
     console.error('Error generating insights:', err);
     gameState.aiInsight = 'AI temporarily unavailable.';
+    
+    const errorEntry = log.entry({ resource: { type: 'global' }, severity: 'ERROR' }, err.message);
+    log.write(errorEntry).catch(console.error);
   }
 }
 

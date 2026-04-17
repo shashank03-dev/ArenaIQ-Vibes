@@ -1,5 +1,6 @@
 import { AlertCircle, MapPin, Navigation } from 'lucide-react';
 import VenueMap from './VenueMap';
+import PropTypes from 'prop-types';
 
 /* ── Linear design tokens (mirrored from CSS) ─────────────── */
 const T = {
@@ -719,3 +720,15 @@ export default function FanView({ gameState, fanAlert }) {
     </div>
   );
 }
+
+FanView.propTypes = {
+  gameState: PropTypes.shape({
+    score: PropTypes.shape({ home: PropTypes.number, away: PropTypes.number }).isRequired,
+    time: PropTypes.string.isRequired,
+    gates: PropTypes.object.isRequired,
+    zones: PropTypes.object.isRequired,
+  }).isRequired,
+  fanAlert: PropTypes.shape({
+    message: PropTypes.string,
+  }),
+};

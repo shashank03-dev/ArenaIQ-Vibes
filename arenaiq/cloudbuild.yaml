@@ -1,11 +1,11 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:$SHORT_SHA', '.']
+    args: ['build', '-t', 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:latest', '.']
 
   # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:$SHORT_SHA']
+    args: ['push', 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:latest']
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -15,7 +15,7 @@ steps:
       - 'deploy'
       - 'arenaiq'
       - '--image'
-      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:$SHORT_SHA'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:latest'
       - '--region'
       - 'asia-south1'
       - '--platform'
@@ -23,4 +23,4 @@ steps:
       - '--allow-unauthenticated'
 
 images:
-  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:$SHORT_SHA'
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/arenaiq-repo/arenaiq:latest'

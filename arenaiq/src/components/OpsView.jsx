@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import VenueMap from './VenueMap';
+import PropTypes from 'prop-types';
 
 /* ── Linear design tokens ────────────────────────────────── */
 const T = {
@@ -445,3 +446,15 @@ export default function OpsView({ gameState, simulateRush }) {
     </div>
   );
 }
+
+OpsView.propTypes = {
+  gameState: PropTypes.shape({
+    score: PropTypes.shape({ home: PropTypes.number, away: PropTypes.number }).isRequired,
+    time: PropTypes.string.isRequired,
+    gates: PropTypes.object.isRequired,
+    zones: PropTypes.object.isRequired,
+    alerts: PropTypes.array.isRequired,
+    aiInsight: PropTypes.string,
+  }).isRequired,
+  simulateRush: PropTypes.func.isRequired,
+};
